@@ -311,7 +311,7 @@ const BattleModePage = () => {
         <nav className="hidden md:flex items-center gap-6 text-sm border border-slate-700 bg-slate-900/50 rounded-full px-6 py-2">
           <a href="#" className="text-slate-300 hover:text-cyan-400 transition">Dashboard</a>
           <a href="#" className="text-cyan-400 font-bold transition">Battles</a>
-          <a href="#" className="text-slate-300 hover:text-cyan-400 transition">Leaderboard</a>
+          <a href="/leaderboard" onClick={(e) => { e.preventDefault(); navigate('/leaderboard', { state: location.state }); }} className="text-slate-300 hover:text-cyan-400 transition">Leaderboard</a>
         </nav>
         <div className="flex items-center gap-4">
           <button className="p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 transition"><FiUser /></button>

@@ -7,10 +7,15 @@ each asset's **Remaining Useful Life (RUL)** and a 0-100 **Health Score**
 using a trained XGBoost model, and surfaces fleet-wide status (Healthy /
 Watch / Critical) with alerting for assets that need urgent attention.
 
-This is a demo/portfolio project built around a **synthetic** sensor dataset
-generated to resemble refinery-asset degradation patterns — it is not
-affiliated with, endorsed by, or built on real data from Hindustan Petroleum
-Corporation Limited (HPCL). The name is used as a domain framing exercise.
+This project was built during my Product Analytics internship at HPCL
+(May - July 2025), where the model and pipeline were developed and evaluated
+on real HPCL asset data. That data is confidential and cannot be published, so
+this public repository uses a **synthetic** dataset with the same schema,
+generated to resemble refinery-asset degradation patterns. The code, model
+and dashboard are the same; the numbers produced from the synthetic data
+(including R², MAE and maintenance-check changes) will differ from those
+reported on the real data. This repo is not an official HPCL release and is
+not endorsed by Hindustan Petroleum Corporation Limited.
 
 ## Architecture
 
@@ -52,6 +57,34 @@ model's training features — and is surfaced by the API (`damage_mechanism`,
 *why* an asset might be degrading, not just *that* it is. Descriptions are
 original paraphrases of publicly documented failure-mode categories, not
 reproductions of API 571's copyrighted text.
+
+## Impact: risk-based vs fixed inspection (simulated policy comparison)
+
+Maintenance today runs on fixed schedules, so healthy assets are over-checked
+and degrading ones can be missed. To size the benefit of using the health score
+to drive inspection frequency, two policies were compared on the same 50 asset
+histories (11,207 asset-days):
+
+- **Baseline (fixed):** every asset inspected every 30 days, regardless of condition.
+- **Risk-based:** inspection interval set by health status: Healthy every 90
+  days, Watch every 30 days, Critical every 3 days.
+
+Checks per status over the assets' lifetimes (synthetic dataset in this repo):
+
+| Status | Fixed checks | Risk-based checks | Change |
+|---|---|---|---|
+| Healthy | 169 | 56 | -67% |
+| Watch | 97 | 97 | 0% |
+| Critical | 107 | 1,068 | +9x (about 10x) |
+
+On the real HPCL data the same comparison gave about 65% fewer checks on
+healthy units and about 10x more on critical units. Total checks rise
+(374 to 1,222) because the extra effort is concentrated on Critical assets:
+the aim is to match inspection effort to risk, not to cut the total.
+
+**Limitations:** this is a policy simulation, not a measured field result. The
+intervals are assumptions, and the percentages change if they change. It does
+not model inspection cost, or failures avoided or missed.
 
 ## Running it
 

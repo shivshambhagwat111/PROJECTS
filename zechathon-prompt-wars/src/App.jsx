@@ -30,6 +30,7 @@ import LocalBattlePage from './pages/LocalBattlePage';
 import LearnPage from './pages/LearnPage';
 import LandingPage from './pages/LandingPage';
 import NotificationPage from './pages/NotificationPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 
 function AnimatedRoutes() {
   const [session, setSession] = useState(null);
@@ -81,6 +82,7 @@ function AnimatedRoutes() {
         <Route path="/local-battle" element={<LocalBattlePage />} />
         <Route path="/learn" element={<LearnPage />} />
         <Route path="/notifications" element={<NotificationPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
       </Routes>
     </AnimatePresence>
   );

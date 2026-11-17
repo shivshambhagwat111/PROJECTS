@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiSend, FiUsers, FiCpu, FiCheck } from 'react-icons/fi';
 import { InviteContext } from '../context/InviteContext';
+import { generateResponse, scoreResponse } from '../lib/modelClient';
 
 // --- Utility: Clean response formatting ---
 function cleanResponse(text) {
@@ -27,90 +28,17 @@ const challengePrompts = [
   "Design a user experience framework for mobile apps that prioritizes accessibility for users with disabilities."
 ];
 
-// --- AI Response Generation ---
+// --- AI calls (shared client; see src/lib/modelClient.js) ---
 async function generateAIResponse(prompt, selectedModel) {
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: selectedModel === 'GPT-4' ? 'gpt-4' : 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1000,
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
+    return await generateResponse(prompt, selectedModel, { maxTokens: 1000 });
   } catch (error) {
     console.error('Error generating AI response:', error);
     return 'Error generating response. Please try again.';
   }
 }
 
-// --- Scoring Function ---
-async function getScoreAndExplanation(promptText, responseText) {
-  try {
-    const scoringPrompt = `You are an expert evaluator. Rate the following response to the given prompt on a scale of 0-25 for each criterion:
-
-Prompt: "${promptText}"
-Response: "${responseText}"
-
-Criteria:
-1. Prompt Clarity (0-25): How clear and well-structured is the prompt?
-2. Response Clarity (0-25): How clear and coherent is the response?
-3. Usefulness (0-25): How useful and relevant is the response to the prompt?
-4. Prompt Depth (0-25): How comprehensive and detailed is the prompt?
-
-Provide your evaluation in this exact JSON format:
-{
-  "PromptClarity": [score],
-  "ResponseClarity": [score],
-  "Usefulness": [score],
-  "PromptDepth": [score],
-  "explanation": "Brief explanation of the scores"
-}`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: scoringPrompt }],
-        max_tokens: 500,
-        temperature: 0.3
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
-    return result;
-  } catch (error) {
-    console.error('Error scoring response:', error);
-    return {
-      PromptClarity: 0,
-      ResponseClarity: 0,
-      Usefulness: 0,
-      PromptDepth: 0,
-      explanation: 'Scoring failed'
-    };
-  }
-}
+const getScoreAndExplanation = scoreResponse;
 
 // --- Main Component ---
 const TeamBattleArenaPage = () => {

@@ -1,134 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const MODEL_MAPPING = {
-  "DeepSeek R1": "deepseek/deepseek-r1-0528:free",
-  "Google Gemma 3": "google/gemma-3-27b-it:free",
-  "Mistral AI": "mistralai/mistral-small-3.1-24b-instruct:free",
-  "Meta Llama 3.3": "meta-llama/llama-3.3-70b-instruct:free"
-};
-  const API_KEY = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_N = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_S2 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B2 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B3 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B4 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B5 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B6 = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_B = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_S = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_KEY_V = "REPLACE_WITH_YOUR_OPENROUTER_KEY";
-  const API_URL = "https://openrouter.ai/api/v1/chat/completions";
+import { generateResponse as callModel, scoreResponse as getScoreAndExplanation } from '../lib/modelClient';
+
+const FINANCE_SYSTEM_PROMPT = "You are a Professional Financial consultant and mainly focus on Financial domain. Never include internal reasoning steps, thoughts, or planning in your responses (e.g., 'Let me think', 'First I will do X'). Do not output any tags like <think>. Your responses should be crisp, clear and easy to understand because the users are people who trying to gain knowledge about the financial domain. The responses should be professional with no bin texts/words. EVERY RESPONSE SHOULD BE STRICTLY RELATED TO FINANCIAL DOMAIN ONLY. Do not use any markdown, bullet points, asterisks (*), hashtags (#), dollar signs ($), or any other special formatting symbols. Output should be plain text only.";
 
 // Utility to clean unwanted symbols from responses
 const cleanResponse = (text) => {
   return text.replace(/[*#$_`~>\-\[\]]/g, '').replace(/\s{2,}/g, ' ').trim();
 };
 
-// Normalize scoring keys to handle both "Prompt Clarity" and "PromptClarity"
-const normalizeScores = (result) => ({
-  PromptClarity: result.PromptClarity ?? result["Prompt Clarity"] ?? 0,
-  ResponseClarity: result.ResponseClarity ?? result["Response Clarity"] ?? 0,
-  Usefulness: result.Usefulness ?? result["Usefulness"] ?? 0,
-  PromptDepth: result.PromptDepth ?? result["Prompt Depth"] ?? 0,
-  explanation: result.explanation ?? ""
-});
-
-// Scoring function with 429 handling and symbol-free output
-const getScoreAndExplanation = async (promptText, responseText) => {
-  const judgePrompt = `
-You are an expert AI evaluator. Score the following AI response to a user prompt on these four criteria, each out of 25:
-- PromptClarity (0-25): How clear and well-structured is the prompt?
-- ResponseClarity (0-25): How clear and well-structured is the AI's response?
-- Usefulness (0-25): How useful is the response to the user's likely intent?
-- PromptDepth (0-25): How thoroughly does the response address the prompt's depth and complexity?
-
-Return your evaluation as a valid JSON object in this format:
-{
-  "PromptClarity": number,
-  "ResponseClarity": number,
-  "Usefulness": number,
-  "PromptDepth": number,
-  "explanation": "short explanation"
-}
-Do not use any markdown, bullet points, asterisks (*), hashtags (#), dollar signs ($), or any other special formatting symbols in your explanation or output. Output should be plain text only.
-
-Prompt: """${promptText}"""
-Response: """${responseText}"""
-`;
-
-  const payload = {
-    model: MODEL_MAPPING["Mistral AI"],
-    messages: [{ role: "user", content: judgePrompt }],
-    temperature: 0.2,
-    max_tokens: 300,
-    response_format: { type: "json_object" }
-  };
-
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const text = await response.text();
-
-    if (response.status === 429) {
-      const resetTimestamp = response.headers.get('X-RateLimit-Reset');
-      let resetMessage = "You have exceeded your free daily limit for model scoring. ";
-      if (resetTimestamp) {
-        const resetDate = new Date(Number(resetTimestamp));
-        resetMessage += `Your quota will reset at ${resetDate.toLocaleString()}. `;
-      }
-      resetMessage += "Add $10 credits to unlock 1000 free requests per day.";
-      return {
-        PromptClarity: 0,
-        ResponseClarity: 0,
-        Usefulness: 0,
-        PromptDepth: 0,
-        explanation: resetMessage
-      };
-    }
-
-    if (!response.ok) {
-      throw new Error(`Judge model HTTP error! status: ${response.status} - ${text}`);
-    }
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error('Judge model returned invalid JSON');
-    }
-
-    let result;
-    try {
-      result = JSON.parse(data.choices[0].message.content);
-    } catch (e) {
-      result = {
-        PromptClarity: 20,
-        ResponseClarity: 20,
-        Usefulness: 20,
-        PromptDepth: 20,
-        explanation: "Could not parse judge model output."
-      };
-    }
-    return normalizeScores(result);
-  } catch (error) {
-    console.error("Error in getScoreAndExplanation:", error);
-    return {
-      PromptClarity: 0,
-      ResponseClarity: 0,
-      Usefulness: 0,
-      PromptDepth: 0,
-      explanation: "No score due to error."
-    };
-  }
-};
 
 const LocalBattlePage = () => {
   const navigate = useNavigate();
@@ -169,39 +50,7 @@ const LocalBattlePage = () => {
   const generateResponse = async (modelName) => {
     setIsGenerating(prev => ({ ...prev, [modelName]: true }));
     try {
-      const payload = {
-        model: MODEL_MAPPING[modelName] || MODEL_MAPPING["Mistral AI"],
-        messages: [
-          { role: "system", content: "You are a Professional Financial consultant and mainly focus on Financial domain. Never include internal reasoning steps, thoughts, or planning in your responses (e.g., 'Let me think', 'First I will do X'). Do not output any tags like <think>. Your responses should be crisp, clear and easy to understand because the users are people who trying to gain knowledge about the financial domain. The responses should be professional with no bin texts/words. EVERY RESPONSE SHOULD BE STRICTLY RELATED TO FINANCIAL DOMAIN ONLY. Do not use any markdown, bullet points, asterisks (*), hashtags (#), dollar signs ($), or any other special formatting symbols. Output should be plain text only." },
-          { role: "user", content: initialPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 400
-      };
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const text = await response.text();
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} - ${text}`);
-      }
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error('Model returned invalid JSON');
-      }
-
-      const responseText = data.choices?.[0]?.message?.content || "No response generated";
+      const responseText = await callModel(initialPrompt, modelName, { system: FINANCE_SYSTEM_PROMPT });
       const cleanedText = cleanResponse(responseText);
       setResponses(prev => ({ ...prev, [modelName]: cleanedText }));
 

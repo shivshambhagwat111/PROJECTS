@@ -430,7 +430,7 @@ const HomePage = () => {
                       <ul className="space-y-2 text-gray-400">
                           <li><a href="#" className="hover:text-brand-pink transition">About Us</a></li>
                           <li><a href="#" className="hover:text-brand-pink transition">Tournaments</a></li>
-                          <li><a href="#" className="hover:text-brand-pink transition">Leaderboard</a></li>
+                          <li><Link to="/leaderboard" state={location.state} className="hover:text-brand-pink transition">Leaderboard</Link></li>
                           <li><a href="#" className="hover:text-brand-pink transition">FAQ</a></li>
                       </ul>
                   </div>
